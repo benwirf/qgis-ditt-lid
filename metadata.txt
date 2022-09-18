@@ -1,0 +1,38 @@
+# This file contains metadata for your plugin. Since 
+# version 2.0 of QGIS this is the proper way to supply 
+# information about a plugin. The old method of 
+# embedding metadata in __init__.py is 
+# no longer supported since version 2.0.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=DITT LID
+qgisMinimumVersion=3.0
+description=A collection of processing scripts used by DITT Livestock Industries Division.
+version=1.0.2
+author=Ben Wirf
+email=ben.wirf@gmail.com
+
+about=Adds algorithms to the processing toolbox used by Livestock Industries Division for quarterly feed outlook reports.
+
+tracker=https://github.com/benwirf/qgis-ditt-lid/issues
+repository=https://github.com/benwirf/qgis-ditt-lid
+# End of mandatory metadata
+
+# Recommended items:
+
+# Uncomment the following line and add your changelog:
+changelog=1.0.1 Initial release
+
+# Tags are comma separated with spaces allowed
+tags=python, processing, rangelands
+
+homepage=https://github.com/benwirf/qgis-ditt-lid
+category=Analysis
+icon=ntg-logo.png
+# experimental flag
+experimental=True
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
