@@ -121,8 +121,8 @@ class PastureGrowthSpreadsheet(QgsProcessingAlgorithm):
             inputs = sorted(raw_inputs)
             for i in range(len(inputs)):
                 ##########Get calendar year and month###################
-                calendar_yr = inputs[i].split('/')[-1].split('.')[0][:4]
-                mnth_digit = inputs[i].split('/')[-1].split('.')[0][-2:]
+                calendar_yr = os.path.split(inputs[i])[-1][:4]
+                mnth_digit = os.path.split(inputs[i])[-1].split('.')[0][-2:]
                 mnth_name = months[int(mnth_digit)-1]
                 ########################################################
                 # add next input to stack on each iteration e.g. [1], [1,2], [1,2,3] etc
