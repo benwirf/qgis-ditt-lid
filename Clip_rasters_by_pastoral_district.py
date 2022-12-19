@@ -73,7 +73,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'MASK':QgsProcessingFeatureSourceDefinition(mask_vector.source(), selectedFeaturesOnly=True, featureLimit=-1, geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid),
                     'SOURCE_CRS':None,
                     'TARGET_CRS':None,
-                    'NODATA':None,
+                    'NODATA':-999,
                     'ALPHA_BAND':False,
                     'CROP_TO_CUTLINE':True,
                     'KEEP_RESOLUTION':False,
@@ -82,7 +82,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'Y_RESOLUTION':None,
                     'MULTITHREADING':False,
                     'OPTIONS':'',
-                    'DATA_TYPE':0,
+                    'DATA_TYPE':5,
                     'EXTRA':'',
                     'OUTPUT':growth_prob_out_path
                     }
@@ -101,7 +101,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'MASK':QgsProcessingFeatureSourceDefinition(mask_vector.source(), selectedFeaturesOnly=True, featureLimit=-1, geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid),
                     'SOURCE_CRS':None,
                     'TARGET_CRS':None,
-                    'NODATA':None,
+                    'NODATA':-999,
                     'ALPHA_BAND':False,
                     'CROP_TO_CUTLINE':True,
                     'KEEP_RESOLUTION':False,
@@ -110,7 +110,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'Y_RESOLUTION':None,
                     'MULTITHREADING':False,
                     'OPTIONS':'',
-                    'DATA_TYPE':0,
+                    'DATA_TYPE':5,
                     'EXTRA':'',
                     'OUTPUT':pcnt_growth_out_path
                 }
@@ -128,7 +128,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'MASK':QgsProcessingFeatureSourceDefinition(mask_vector.source(), selectedFeaturesOnly=True, featureLimit=-1, geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid),
                     'SOURCE_CRS':None,
                     'TARGET_CRS':None,
-                    'NODATA':None,
+                    'NODATA':-999,
                     'ALPHA_BAND':False,
                     'CROP_TO_CUTLINE':True,
                     'KEEP_RESOLUTION':False,
@@ -137,7 +137,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'Y_RESOLUTION':None,
                     'MULTITHREADING':False,
                     'OPTIONS':'',
-                    'DATA_TYPE':0,
+                    'DATA_TYPE':5,
                     'EXTRA':'',
                     'OUTPUT':tsdm_out_path
                     }
@@ -155,7 +155,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'MASK':QgsProcessingFeatureSourceDefinition(mask_vector.source(), selectedFeaturesOnly=True, featureLimit=-1, geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid),
                     'SOURCE_CRS':None,
                     'TARGET_CRS':None,
-                    'NODATA':None,
+                    'NODATA':-999,
                     'ALPHA_BAND':False,
                     'CROP_TO_CUTLINE':True,
                     'KEEP_RESOLUTION':False,
@@ -164,7 +164,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
                     'Y_RESOLUTION':None,
                     'MULTITHREADING':False,
                     'OPTIONS':'',
-                    'DATA_TYPE':0,
+                    'DATA_TYPE':5,
                     'EXTRA':'',
                     'OUTPUT':tsdm_pcnt_out_path
                     }
