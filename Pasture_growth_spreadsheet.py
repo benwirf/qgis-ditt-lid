@@ -51,8 +51,8 @@ class PastureGrowthSpreadsheet(QgsProcessingAlgorithm):
         ###Construct list of current + 4 previous financial years to add as options to enum dropdown
         cdt = datetime.datetime.now()
         current_yr = cdt.year
-        current_mnth = cdt.month
-        if current_mnth>6:
+        current_month = cdt.month
+        if current_month>6:
             financial_year = f'{current_yr}-{current_yr+1} FY'
         elif current_month<=6:
             financial_year = f'{current_yr-1}-{current_yr} FY'
