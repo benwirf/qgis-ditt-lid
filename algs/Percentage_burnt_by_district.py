@@ -1,4 +1,5 @@
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsField, QgsFeature,
                         QgsProcessing, QgsProcessingAlgorithm,
                         QgsProcessingParameterFeatureSource,
@@ -8,7 +9,7 @@ from qgis.core import (QgsField, QgsFeature,
                         QgsProcessingMultiStepFeedback)
 
 import processing
-
+import os
 
 class PercentBurntByDistrict(QgsProcessingAlgorithm):
     PASTORAL_DISTRICTS = 'PASTORAL_DISTRICTS'
@@ -29,6 +30,9 @@ class PercentBurntByDistrict(QgsProcessingAlgorithm):
 
     def groupId(self):
         return "Feed_outlook"
+
+    def icon(self):
+        return QIcon(os.path.join(os.path.dirname(__file__), "../icons/pcnt_burnt_icon.png"))
  
     def shortHelpString(self):
         return "Calculate percentage of each pastoral district burnt and ouput \

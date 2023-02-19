@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QVariant, QDir
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsFeatureRequest,
                         QgsFeature,
@@ -12,13 +12,22 @@ from qgis.core import (QgsFeatureRequest,
                         QgsProcessingParameterBoolean,
                         QgsProcessingMultiStepFeedback,
                         QgsVectorLayer,
+                        QgsRasterLayer,
                         QgsWkbTypes,
                         QgsProcessingParameterNumber,
                         QgsProcessingOutputMultipleLayers,
-                        QgsProcessingException)
+                        QgsProcessingException,
+                        QgsProcessingContext,
+                        QgsGradientColorRamp,
+                        QgsSingleBandPseudoColorRenderer,
+                        QgsColorRampShader,
+                        QgsMapLayerType)
 
 from osgeo import gdal
+from pathlib import Path
 import os
+import re
+import math
 import processing
                        
 class MaxDistToWater(QgsProcessingAlgorithm):
@@ -27,8 +36,14 @@ class MaxDistToWater(QgsProcessingAlgorithm):
     WATER_POINTS = 'WATER_POINTS'
     OUTPUT_RESOLUTION = 'OUTPUT_RESOLUTION'
     OUTPUT_FOLDER = 'OUTPUT_FOLDER'
-    OUTPUT_LAYERS = 'OUTPUT_LAYERS'
     CREATE_REPORT = 'CREATE_REPORT'
+    OUTPUT_LAYERS = 'OUTPUT_LAYERS'
+    LOAD_OUTPUTS = 'LOAD_OUTPUTS'
+    
+    GLOBAL_MAXIMUM_DTW = None
+    
+    LAYERS_TO_LOAD = []
+
  
     def __init__(self):
         super().__init__()
@@ -58,7 +73,12 @@ class MaxDistToWater(QgsProcessingAlgorithm):
                 CRS. If both input layers use geographic coordinates, they will both be\
                 transformed to EPSG:9473 GDA 2020/ Australian Albers.\
                 <br>Outputs are a proximity raster generated for each paddock\
-                and an optional spreadsheet report."
+                and an optional spreadsheet report.\
+                If the option to load and style output rasters is selected, the\
+                resulting layers will be added to the current project in a group\
+                called 'water proximity'. An interpolated gradient style will be\
+                applied to each raster, based on the maximum distance to water\
+                for all paddocks."
  
     def helpUrl(self):
         return "https://qgis.org"
@@ -92,13 +112,18 @@ class MaxDistToWater(QgsProcessingAlgorithm):
             maxValue=100.0))
             
         self.addParameter(QgsProcessingParameterBoolean(
-        self.CREATE_REPORT,
-        "Create report spreadsheet?",
-        defaultValue=True))
+            self.CREATE_REPORT,
+            "Create report spreadsheet?",
+            defaultValue=True))
             
         self.addParameter(QgsProcessingParameterFolderDestination(
             self.OUTPUT_FOLDER,
             "Folder for output files"))
+        
+        self.addParameter(QgsProcessingParameterBoolean(
+            self.LOAD_OUTPUTS,
+            "Load and style output rasters?",
+            defaultValue=False))
         
         '''
         Prime suspect (output param) in case of crash/freeze- remove this first
@@ -126,7 +151,12 @@ class MaxDistToWater(QgsProcessingAlgorithm):
         output_resolution = self.parameterAsInt(parameters, self.OUTPUT_RESOLUTION, context)
         export_report = self.parameterAsBool(parameters, self.CREATE_REPORT, context)
         output_folder = self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
-                
+        load_outputs = self.parameterAsBool(parameters, self.LOAD_OUTPUTS, context)
+        
+        if not QDir().mkpath(output_folder):
+            raise QgsProcessingException('Failed to create output directory')
+            return {}
+        
         for ft in source_paddocks.getFeatures():
             if not ft.geometry().isGeosValid():
                 raise QgsProcessingException(f"Feature in layer: {source_paddocks.sourceName()} with id: {ft.id()} has invalid geometry")
@@ -135,6 +165,7 @@ class MaxDistToWater(QgsProcessingAlgorithm):
         #############Transform either or both input layer/s if geographic#############
         #I won't fully trust the logic in this block until I test it thoroughly...
         #hence, if something isn't working- start debugging here.
+        
         # paddocks projected but waterpoints geographic
         if not source_paddocks.sourceCrs().isGeographic() and source_waterpoints.sourceCrs().isGeographic():
             crs = source_paddocks.sourceCrs()
@@ -180,6 +211,8 @@ class MaxDistToWater(QgsProcessingAlgorithm):
         
         info_map = {}# Used to store the info create the xlsx report
         
+        maximums = []# will append max of each paddock, then find global max
+        
         # Iterate over each paddock
         for i, paddock in enumerate(prepared_paddocks.getFeatures()):
             # Simple spatial query to retrieve water points within each paddock
@@ -190,7 +223,8 @@ class MaxDistToWater(QgsProcessingAlgorithm):
             paddock_info = []# will be added to info_map dict as value against paddock name key
             
             if paddock_name_field:
-                paddock_name = paddock[paddock_name_field]
+                pdk_name = paddock[paddock_name_field].replace("'", "")
+                paddock_name = re.sub('[^a-zA-Z0-9]+', '_', pdk_name)
             else:
                 paddock_name = f'Paddock_{i}'
             
@@ -255,7 +289,7 @@ class MaxDistToWater(QgsProcessingAlgorithm):
             ############################################################################
             #*Use materialize()
             paddock_layer_subset = prepared_paddocks.materialize(QgsFeatureRequest(paddock.id()))
-
+            
             clipped_path = os.path.join(output_folder, f'{paddock_name}.tif')
             
             clip_params = {'INPUT':results[f'proximity_{paddock_name}'],
@@ -283,35 +317,48 @@ class MaxDistToWater(QgsProcessingAlgorithm):
             result_raster = gdal.Open(results[f'clipped_{paddock_name}'])
             b1_stats = result_raster.GetRasterBand(1).GetStatistics(0, 1)
 #            max = result_raster.dataProvider().bandStatistics(1).maximumValue# in meters
-            max = b1_stats[1]
-            paddock_info.append(round(max/1000, 5))
+            local_max = b1_stats[1]
+            maximums.append(local_max)
+            paddock_info.append(round(local_max/1000, 5))
             info_map[paddock_name] = paddock_info
             result_raster = None
-#        model_feedback.pushInfo(f'PADDOCK INFO >>>{repr(info_map)}')
+#            model_feedback.pushInfo(f'PADDOCK INFO >>>{repr(info_map)}')            
+            # calculate global maximum (max of all paddock maxima)
+            flt_max = max(maximums) # will be a long float
+            
         #Outside loop
-        ####################Create XLSX report###########################
-        #Export report to spreadsheet
-        options = QgsVectorLayer.LayerOptions()
-        options.loadDefaultStyle=False
-        report_lyr = QgsVectorLayer('Point', 'Table', 'memory', options)
-        flds = QgsFields()
-        flds_to_add = [QgsField('Paddock Name', QVariant.String, len=254),
-                    QgsField('Area Ha', QVariant.Double, len=10, prec=3),
-                    QgsField('No. Waterpoints', QVariant.Int),
-                    QgsField('Max Dist to Water (km)', QVariant.Double, len=10, prec=3)]
-        for f in flds_to_add:
-            flds.append(f)
-        report_lyr.dataProvider().addAttributes(flds)
-        report_lyr.updateFields()
+        self.GLOBAL_MAXIMUM_DTW = math.ceil(flt_max)# this will be maximum value used for renderer classification
+        #############Load and style output rasters if requested############
+        if load_outputs:
+            for f_path in outputLayers:
+                file_name = Path(f_path).stem
+                rl = QgsRasterLayer(f_path, file_name, 'gdal')
+                if rl.isValid():
+                    self.LAYERS_TO_LOAD.append(rl)
 
-        feedback.setCurrentStep(step)
-        step+=1
-        
-        if not report_lyr.isValid():
-            raise QgsProcessingException("Could not create output report")
-        
+        ####################Create XLSX report###########################
         # check if user requested to export report spreadsheet
         if export_report:
+            #Export report to spreadsheet
+            options = QgsVectorLayer.LayerOptions()
+            options.loadDefaultStyle=False
+            report_lyr = QgsVectorLayer('Point', 'Table', 'memory', options)
+            flds = QgsFields()
+            flds_to_add = [QgsField('Paddock Name', QVariant.String, len=254),
+                        QgsField('Area Ha', QVariant.Double, len=10, prec=3),
+                        QgsField('No. Waterpoints', QVariant.Int),
+                        QgsField('Max Dist to Water (km)', QVariant.Double, len=10, prec=3)]
+            for f in flds_to_add:
+                flds.append(f)
+            report_lyr.dataProvider().addAttributes(flds)
+            report_lyr.updateFields()
+
+            feedback.setCurrentStep(step)
+            step+=1
+            
+            if not report_lyr.isValid():
+                raise QgsProcessingException("Could not create output report")
+                        
             # make sure temporary report layer is valid
             if report_lyr.isValid():
                 for pdk_name, atts_list in info_map.items():
@@ -319,15 +366,62 @@ class MaxDistToWater(QgsProcessingAlgorithm):
                     atts = [pdk_name, atts_list[1], atts_list[2], atts_list[3]]
                     feat.setAttributes(atts)
                     report_lyr.dataProvider().addFeatures([feat])
+                    
+                    report_path = os.path.join(output_folder, 'Max_dist_to_water.xlsx')
                 
                 export_params = {'LAYERS':[report_lyr],
                                     'USE_ALIAS':False,
                                     'FORMATTED_VALUES':False,
-                                    'OUTPUT':os.path.join(output_folder, 'Max_dist_to_water.xlsx'),
+                                    'OUTPUT':report_path,
                                     'OVERWRITE':False}
                                                     
                 outputs['Report_spreadsheet'] = processing.run("native:exporttospreadsheet", export_params, context=context, feedback=feedback, is_child_algorithm=True)
                 results['Report_spreadsheet'] = outputs['Report_spreadsheet']['OUTPUT']
-                        
+                
+                if load_outputs:
+                    uri = f'{report_path}|layername=Table'
+                    rep_lyr = QgsVectorLayer(uri, 'Report_Table', 'ogr')
+                    if rep_lyr.isValid():
+                        self.LAYERS_TO_LOAD.append(rep_lyr)
+                    
         results[self.OUTPUT_LAYERS] = outputLayers
         return results
+        
+    def postProcessAlgorithm(self, context, feedback):
+        max_dtw = self.GLOBAL_MAXIMUM_DTW
+        if self.LAYERS_TO_LOAD:
+            project = context.project()
+            group_name = 'Water proximity'
+            root_group = project.layerTreeRoot()
+            if not root_group.findGroup(group_name):
+                root_group.insertGroup(0, group_name)
+            group1 = root_group.findGroup(group_name)
+            
+            for lyr in self.LAYERS_TO_LOAD:
+                if lyr.type() == QgsMapLayerType.RasterLayer:
+                    props = {'color1': '1,133,113,255',
+                            'color2': '166,97,26,255',
+                            'discrete': '0',
+                            'rampType': 'gradient',
+                            'stops': '0.25;128,205,193,255:0.5;245,245,245,255:0.75;223,194,125,255'}
+
+                    color_ramp = QgsGradientColorRamp.create(props)
+                    renderer = QgsSingleBandPseudoColorRenderer(lyr.dataProvider(), 1)
+                    renderer.setClassificationMin(0)
+                    renderer.setClassificationMax(max_dtw)
+                    renderer.createShader(color_ramp, QgsColorRampShader.Interpolated, QgsColorRampShader.EqualInterval, 5)# Don't use Continuous
+                    lyr.setRenderer(renderer)
+                    lyr.triggerRepaint()
+                    if group1:
+                        project.addMapLayer(lyr, False)
+                        group1.addLayer(lyr)
+                            
+            for lyr in self.LAYERS_TO_LOAD:
+                if lyr.type() == QgsMapLayerType.VectorLayer:
+                    if group1:
+                        project.addMapLayer(lyr, False)
+                        group1.insertLayer(0, lyr)
+                        
+            self.LAYERS_TO_LOAD.clear()
+                            
+##############################################################################

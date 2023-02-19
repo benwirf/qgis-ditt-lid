@@ -1,5 +1,5 @@
-
 from qgis.PyQt.QtCore import QCoreApplication, QVariant, Qt
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterString,
                     QgsProcessingParameterVectorLayer, QgsProcessingParameterEnum,
                     QgsProcessingParameterFileDestination, QgsProcessingParameterFile,
@@ -34,6 +34,9 @@ class PastureGrowthSpreadsheet(QgsProcessingAlgorithm):
  
     def groupId(self):
         return "Feed_outlook"
+        
+    def icon(self):
+        return QIcon(os.path.join(os.path.dirname(__file__), "../icons/spreadsheet_icon.png"))
  
     def shortHelpString(self):
         return "Creates Excel Spreadsheet for stacked, median monthly growth for each pastoral district by FY"

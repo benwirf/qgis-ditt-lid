@@ -1,12 +1,13 @@
-from qgis.core import QgsProcessing
-from qgis.core import QgsProcessingAlgorithm
-from qgis.core import QgsProcessingMultiStepFeedback
-from qgis.core import QgsProcessingParameterVectorLayer
-from qgis.core import QgsProcessingParameterRasterLayer
-from qgis.core import QgsProcessingParameterMultipleLayers
-from qgis.core import QgsProcessingParameterFolderDestination
-from qgis.core import QgsProcessingFeatureSourceDefinition
-from qgis.core import QgsFeatureRequest
+from qgis.core import (QgsProcessing,
+                        QgsProcessingAlgorithm,
+                        QgsProcessingMultiStepFeedback,
+                        QgsProcessingParameterVectorLayer,
+                        QgsProcessingParameterField,
+                        QgsProcessingParameterRasterLayer,
+                        QgsProcessingParameterMultipleLayers,
+                        QgsProcessingParameterFolderDestination,
+                        QgsProcessingFeatureSourceDefinition,
+                        QgsFeatureRequest)
 import processing
 import os
 
@@ -15,7 +16,8 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
     
     # Pastoral districts vector
     DISTRICTS = 'DISTRICTS' # Vector Polygons
-    
+    # field containing district names
+    NAME_FIELD = 'NAME_FIELD'
     # Input rasters
     GROWTH_PROBABILITY_INPUT = 'GROWTH_PROBABILITY_INPUT'
     PERCENTILE_GROWTH_INPUTS = 'PERCENTILE_GROWTH_INPUTS' # Multiple layers (3, 6, 12, 24 mnths)
@@ -30,6 +32,10 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
     def initAlgorithm(self, config=None):
         # Alg inputs
         self.addParameter(QgsProcessingParameterVectorLayer(self.DISTRICTS, 'Pastoral districts', types=[QgsProcessing.TypeVectorPolygon], defaultValue=None))
+        self.addParameter(QgsProcessingParameterField(self.NAME_FIELD,
+                                                    'Field containing district names',
+                                                    parentLayerParameterName=self.DISTRICTS,
+                                                    type=QgsProcessingParameterField.String))
         self.addParameter(QgsProcessingParameterRasterLayer(self.GROWTH_PROBABILITY_INPUT, 'Input growth probability'))
         self.addParameter(QgsProcessingParameterMultipleLayers(self.PERCENTILE_GROWTH_INPUTS, 'Inputs growth percent', QgsProcessing.TypeRaster))
         self.addParameter(QgsProcessingParameterRasterLayer(self.TSDM_INPUT, 'Input TSDM'))
@@ -43,7 +49,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
         mask_vector = self.parameterAsVectorLayer(parameters, self.DISTRICTS, context)
-        
+        name_field = self.parameterAsFields(parameters, self.NAME_FIELD, context)[0]
         pcnt_growth_layers = self.parameterAsLayerList(parameters, self.PERCENTILE_GROWTH_INPUTS, context)
         
         growth_prob_folder = parameters[self.GROWTH_PROBABILITY_OUPUT]
@@ -64,7 +70,7 @@ class ClipRastersByPastoralDistrict(QgsProcessingAlgorithm):
         for feat in mask_vector.getFeatures():
             # Clip AussieGRASS rasters by districts
             mask_vector.selectByIds([feat.id()])
-            district_name = feat['NAME'].title()# Format upper case to title case e.g. "BARKLY" -> "Barkly"
+            district_name = feat[name_field].title()# Format upper case to title case e.g. "BARKLY" -> "Barkly"
             
             # Clip Growth Probability map by districts
             growth_prob_out_path = os.path.join(growth_prob_folder, f'{district_name}_GROWTHPROB.img')

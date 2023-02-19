@@ -1,5 +1,6 @@
 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant, Qt
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsProcessing, QgsProcessingAlgorithm, QgsProcessingParameterString,
                     QgsProcessingParameterVectorLayer, QgsProcessingParameterEnum,
                     QgsProcessingParameterBoolean, QgsProcessingParameterFolderDestination,
@@ -37,6 +38,9 @@ class PastureGrowthGraphs(QgsProcessingAlgorithm):
  
     def groupId(self):
         return "Feed_outlook"
+        
+    def icon(self):
+        return QIcon(os.path.join(os.path.dirname(__file__), "../icons/graph_icon.png"))
  
     def shortHelpString(self):
         return "Creates graphs for stacked, median monthly growth for each pastoral district by FY"

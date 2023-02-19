@@ -1,4 +1,5 @@
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsVectorLayer, QgsField, QgsFeature,
                         QgsProcessing, QgsProcessingAlgorithm,
                         QgsProcessingParameterRasterLayer,
@@ -8,6 +9,7 @@ from qgis.core import (QgsVectorLayer, QgsField, QgsFeature,
 
 from osgeo import gdalnumeric
 import processing
+import os
 
                        
 class FireRiskSummary(QgsProcessingAlgorithm):
@@ -30,6 +32,9 @@ class FireRiskSummary(QgsProcessingAlgorithm):
  
     def groupId(self):
         return "Feed_outlook"
+
+    def icon(self):
+        return QIcon(os.path.join(os.path.dirname(__file__), "../icons/fire_risk_icon.png"))
  
     def shortHelpString(self):
         return "Creates an Excel Sheet containing counts and percentages of pixels\
