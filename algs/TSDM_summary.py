@@ -1,4 +1,5 @@
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsVectorLayer, QgsField, QgsFeature,
                         QgsProcessing, QgsProcessingAlgorithm,
                         QgsProcessingParameterRasterLayer,
@@ -8,6 +9,7 @@ from qgis.core import (QgsVectorLayer, QgsField, QgsFeature,
 
 from osgeo import gdalnumeric
 import processing
+import os
 
                        
 class TSDMSummary(QgsProcessingAlgorithm):
@@ -31,6 +33,9 @@ class TSDMSummary(QgsProcessingAlgorithm):
  
     def groupId(self):
         return "Feed_outlook"
+        
+    def icon(self):
+        return QIcon(os.path.join(os.path.dirname(__file__), "../icons/tsdm_icon.png"))
  
     def shortHelpString(self):
         return "Creates an Excel Workbook containing 2 sheets with counts and percentages of pixels\

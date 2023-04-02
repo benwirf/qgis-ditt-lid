@@ -219,12 +219,16 @@ class PastureGrowthGraphs(QgsProcessingAlgorithm):
             
             feedback.setCurrentStep(step)
             step+=1
+            model_feedback.pushInfo(f'Creating pasture growth graph for {district_name} District')
         graph.close()# This should close the window after all graphs have been created
 ##################################################################################################
         return results
         
         
     def make_plot(self, region, median, values1=[], values2=[], values3=[], labels=[], smooth=False):
+        
+        max_value = max([max(values1), max(values2), max(values3)])
+        self.msg_log.logMessage(f'Maximum District Value {region}: {max_value}')
         
         fy_months = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
         
@@ -265,8 +269,20 @@ class PastureGrowthGraphs(QgsProcessingAlgorithm):
         plt.legend(fontsize=18)
         plt.xticks(fontsize=18, rotation=90)
         if region == 'Northern':
-            plt.yticks(np.arange(0, 2600, step=500), fontsize=18)
+            if max_value > 2600:
+                # Take the maximum value out of the 3 plotted financial years & round up to nearest 500
+                upper_tick = max_value+(500-max_value%500)
+            else:
+                upper_tick = 2600
+            self.msg_log.logMessage(f'Upper Tick {region}: {upper_tick}')
+            plt.yticks(np.arange(0, upper_tick, step=500), fontsize=18)
         elif region == 'Southern':
-            plt.yticks(np.arange(0, 800, step=250), fontsize=18)
+            if max_value > 800:
+                # Take the maximum value out of the 3 plotted financial years & round up to nearest 250
+                upper_tick = max_value+(250-max_value%250)
+            else:
+                upper_tick = 800
+            self.msg_log.logMessage(f'Upper Tick {region}: {upper_tick}')
+            plt.yticks(np.arange(0, upper_tick, step=250), fontsize=18)
         plt.gca().yaxis.grid(linestyle='dashed')
         return plt

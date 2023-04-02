@@ -41,6 +41,9 @@ from .algs.Total_growth_summary import TotalGrowthSummary
 from .algs.TSDM_summary import TSDMSummary
 from .algs.Paddock_watered_areas import PaddockWateredAreas
 from .algs.Max_dist_to_water import MaxDistToWater
+from .algs.Add_layout_table import AddLayoutTable
+from .algs.Extract_land_types import ExtractLandTypes
+from .algs.Relative_growth_summary import RelativeGrowthSummary
 
 iconPath = os.path.dirname(__file__)
 
@@ -77,7 +80,10 @@ class DittLidProvider(QgsProcessingProvider):
                         TotalGrowthSummary(),
                         TSDMSummary(),
                         PaddockWateredAreas(),
-                        MaxDistToWater()]
+                        MaxDistToWater(),
+                        AddLayoutTable(),
+                        ExtractLandTypes(),
+                        RelativeGrowthSummary()]
 
         for alg in self.alglist:
             self.addAlgorithm(alg)
